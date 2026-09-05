@@ -11,6 +11,7 @@
 import "dotenv/config";
 import mysql from "mysql2/promise";
 import { buildDbConfig, describeDbTarget } from "../dbConfig";
+import { INTEGRATION_INDEXES, INTEGRATION_TABLES } from "../integration/schema";
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -547,6 +548,10 @@ async function main() {
   await addColumn("account_settings", "autoWeeklyStrategy", "\`autoWeeklyStrategy\` boolean NOT NULL DEFAULT false");
   await addColumn("account_settings", "weeklyReviewEnabled", "\`weeklyReviewEnabled\` boolean NOT NULL DEFAULT true");
   await addColumn("account_settings", "conversionTrackingEnabled", "\`conversionTrackingEnabled\` boolean NOT NULL DEFAULT true");
+
+  // ── 大漁マーケットOS 統合（追加のみ。既存テーブルは変更しない） ────────────
+  for (const t of INTEGRATION_TABLES) await createTable(t.table, t.ddl);
+  for (const i of INTEGRATION_INDEXES) await addIndex(i.table, i.index, i.columns);
 
   // アカウント単位の絞り込みが常に索引に乗るようにする
   await addIndex("posts", "idx_posts_account", "`accountId`");
