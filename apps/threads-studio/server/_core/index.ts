@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { mediaHandler } from "../mediaHandler";
 import { threadsConnectHandler } from "../threadsConnectHandler";
 import { appRouter } from "../routers";
+import { registerIntegrationRoutes } from "../integration";
 import { startInternalScheduler } from "../cron";
 import { createContext } from "./context";
 import { serveStatic } from "./static";
@@ -35,6 +36,10 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  // 大漁マーケットOS からのサーバー間API。
+  // 署名は「受け取った生の本文」のハッシュに掛かっているため、
+  // express.json() より前に登録して raw のまま受け取る必要がある。
+  registerIntegrationRoutes(app);
   // 署名は元バイト列を対象にするため、全体のJSONパーサーより前に限定サイズで受ける。
   app.post("/api/conversions/webhook/:accountId", express.raw({ type: "application/json", limit: "128kb" }), conversionWebhookHandler);
   // Configure body parser with larger size limit for file uploads
