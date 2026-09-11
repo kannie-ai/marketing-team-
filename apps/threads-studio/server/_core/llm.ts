@@ -48,11 +48,39 @@ export type InvokeResult = {
   };
 };
 
-type OpenAIError = Error & { status?: number };
+type OpenAIError = Error & { status?: number; code?: string };
 
-function httpError(status: number): OpenAIError {
-  const error = new Error(`OpenAI API request failed (${status})`) as OpenAIError;
-  error.status = status;
+/** キーやトークンらしき文字列を伏せる（OpenAIのエラー文は "sk-proj-****abcd" の形で一部を含むことがある） */
+function sanitize(text: string): string {
+  return text.replace(/sk-[A-Za-z0-9_*.-]+/g, "sk-***").replace(/Bearer\s+\S+/gi, "Bearer ***").slice(0, 200);
+}
+
+/**
+ * 失敗応答を例外にする。status に加えて OpenAI の error.code（model_not_found 等）と
+ * 短い説明を載せ、呼び出し側（aiSupport.classifyAiError）が原因を判別できるようにする。
+ * 以前は status しか残らず、モデル名の誤りも一律「AI処理に失敗」になっていた。
+ */
+async function httpError(response: Response): Promise<OpenAIError> {
+  let code: string | undefined;
+  let detail = "";
+  try {
+    const body = await response.text();
+    try {
+      const parsed = JSON.parse(body) as { error?: { message?: unknown; code?: unknown; type?: unknown } };
+      const c = parsed.error?.code ?? parsed.error?.type;
+      code = typeof c === "string" && c ? c : undefined;
+      detail = typeof parsed.error?.message === "string" ? parsed.error.message : "";
+    } catch {
+      detail = body;
+    }
+  } catch {
+    /* 本文が読めなくても status だけで分類できる */
+  }
+  const error = new Error(
+    `OpenAI API request failed (${response.status}${code ? ` ${code}` : ""})${detail ? `: ${sanitize(detail)}` : ""}`
+  ) as OpenAIError;
+  error.status = response.status;
+  error.code = code;
   return error;
 }
 
@@ -98,7 +126,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     throw error;
   }
 
-  if (!response.ok) throw httpError(response.status);
+  if (!response.ok) throw await httpError(response);
 
   const data = await response.json() as {
     id?: string;
