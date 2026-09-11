@@ -33,8 +33,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # package.json の packageManager 欄のバージョンをそのまま使う
+      # package.json の packageManager 欄のバージョンをそのまま使う。
+      # リポジトリ直下には package.json が無いので、アプリ側のものを指す
+      # （これが無いと "No pnpm version is specified" でインストール前に落ちる）
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/threads-studio/package.json
 
       - uses: actions/setup-node@v4
         with:

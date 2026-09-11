@@ -63,6 +63,18 @@ describe("エラー分類", () => {
     expect(classifyAiError(new Error("Unexpected token < in JSON"))).toBe("invalid_output");
     expect(classifyAiError(new Error("OPENAI_API_KEY is not configured"))).toBe("not_configured");
   });
+
+  it("モデル名の誤り・リクエスト拒否を認証エラーや不明と区別する（本番で原因が分かるように）", () => {
+    const notFound = Object.assign(new Error("OpenAI API request failed (404 model_not_found): The model `gpt-x` does not exist"), { status: 404, code: "model_not_found" });
+    expect(classifyAiError(notFound)).toBe("model_not_found");
+    // このキーで使えないモデルは 403 で返ることがあるが、auth ではなく model_not_found にする
+    const forbiddenModel = Object.assign(new Error("OpenAI API request failed (403 model_not_found): Project does not have access to model"), { status: 403, code: "model_not_found" });
+    expect(classifyAiError(forbiddenModel)).toBe("model_not_found");
+    const badRequest = Object.assign(new Error("OpenAI API request failed (400 invalid_request_error): Unsupported parameter"), { status: 400, code: "invalid_request_error" });
+    expect(classifyAiError(badRequest)).toBe("bad_request");
+    // 文字列化された例外からも拾う
+    expect(classifyAiError(new Error("OpenAI API request failed (400)"))).toBe("bad_request");
+  });
 });
 
 describe("リライト結果の検証", () => {
