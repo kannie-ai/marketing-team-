@@ -6,7 +6,8 @@ export const qualityFindingSchema = z.object({
   evidence: z.string().max(500), severity: z.number().int().min(1).max(4), suggestion: z.string().max(500),
   autoFixable: z.boolean(), humanReview: z.boolean(), deterministic: z.boolean(),
 });
-export const qualityCheckResultSchema = z.object({ findings: z.array(qualityFindingSchema).max(40), summary: z.string().max(800) }).strict();
+// AI出力の検証。余分なキーは拒否せず捨てる（zodの既定動作）。形式はプロンプト側で明示している
+export const qualityCheckResultSchema = z.object({ findings: z.array(qualityFindingSchema).max(40), summary: z.string().max(800) });
 export type QualityFinding = z.infer<typeof qualityFindingSchema>;
 
 const SECRET = /(sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|(?:api[_-]?key|secret|token)\s*[:=]\s*[A-Za-z0-9_-]{12,})/i;
@@ -28,4 +29,4 @@ export function deterministicQualityCheck(content: string, forbidden: string[] =
 
 export function shouldBlockPosting(findings: QualityFinding[]): boolean { return findings.some((x) => x.deterministic && x.status === "block"); }
 
-export const safeRewriteSchema = z.object({ revised: z.string().min(1).max(500), changes: z.array(z.object({ before: z.string().max(300), after: z.string().max(300), reason: z.string().max(300) })).max(20) }).strict();
+export const safeRewriteSchema = z.object({ revised: z.string().min(1).max(500), changes: z.array(z.object({ before: z.string().max(300), after: z.string().max(300), reason: z.string().max(300) })).max(20) });
